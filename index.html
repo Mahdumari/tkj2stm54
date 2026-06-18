@@ -485,7 +485,7 @@
          onerror="this.style.display='none';this.parentElement.innerHTML+='<svg width=&quot;32&quot; height=&quot;32&quot; viewBox=&quot;0 0 60 60&quot; fill=&quot;none&quot;><polygon points=&quot;30,10 33.6,22.3 46.6,22.3 36.5,29.7 40.1,42 30,34.6 19.9,42 23.5,29.7 13.4,22.3 26.4,22.3&quot; fill=&quot;#f5c842&quot; opacity=&quot;0.8&quot;/><circle cx=&quot;30&quot; cy=&quot;30&quot; r=&quot;3.5&quot; fill=&quot;#00e5c8&quot; opacity=&quot;0.9&quot;/></svg>';">
   </div>
   <div class="footer-title">Terima Kasih atas Segala Kenangan</div>
-  <p class="footer-sub">Setiap momen, setiap tawa, setiap perjuangan —<br>semua itu membentuk kita menjadi siapa kita hari ini.<br>Sampai jumpa di antara para bintang.<br>FOLLOW AKUN INSTAGRAM KAMI.<br>Official Akun:  __thegeorgeoustkj2_xi<br>Admin:  piinnz_bae</p>
+  <p class="footer-sub">Setiap momen, setiap tawa, setiap perjuangan —<br>semua itu membentuk kita menjadi siapa kita hari ini.<br>Sampai jumpa di antara para bintang.<br>FOLLOW AKUN KAMI.<br>Official Akun: __thegeorgeoustkj2_xi<br>Admin: fiinnz_bae</p>
   <div class="footer-stars">✦ ⭐ ✦ ⭐ ✦</div>
 </footer>
 
@@ -500,6 +500,7 @@
     <button class="lb-arrow" id="lbNext" title="Berikutnya">&#8594;</button>
     <img id="lbImg" src="" alt="">
     <video id="lbVid" controls></video>
+    <iframe id="lbDriveFrame" allow="autoplay" allowfullscreen style="display:none;width:90%;height:90%;border:none;border-radius:10px;background:#000;"></iframe>
   </div>
   <div id="lbZoomBar">
     <button id="lbZoomOut" title="Zoom Out (-)">&#8722;</button>
@@ -549,6 +550,7 @@ const lb=document.getElementById('lightbox');
 const lbVp=document.getElementById('lbViewport');
 const lbImg=document.getElementById('lbImg');
 const lbVid=document.getElementById('lbVid');
+const lbDriveFrame=document.getElementById('lbDriveFrame');
 const lbZoomLbl=document.getElementById('lbZoomLabel');
 const lbZoomPct=document.getElementById('lbZoomPct');
 let zScale=1,zMinScale=1,zMaxScale=5,panX=0,panY=0;
@@ -639,12 +641,20 @@ function openLBItem(idx){
   gIdx=Math.max(0,Math.min(gallery.length-1,idx));
   const item=gallery[gIdx];
   resetZoom();
-  if(item.type==='vid'){
+  if(item.type==='vid-drive'){
     lbImg.style.display='none';lbImg.src='';
+    lbVid.style.display='none';lbVid.pause&&lbVid.pause();lbVid.src='';
+    lbDriveFrame.style.display='block';lbDriveFrame.src=item.src;
+    activeEl=null; // tidak ada zoom untuk video drive (sudah ada kontrol native)
+    lb.classList.add('open');document.body.style.overflow='hidden';
+  } else if(item.type==='vid'){
+    lbImg.style.display='none';lbImg.src='';
+    lbDriveFrame.style.display='none';lbDriveFrame.src='';
     lbVid.style.display='block';lbVid.src=item.src;
     activeEl=lbVid;lb.classList.add('open');document.body.style.overflow='hidden';
   } else {
     lbVid.style.display='none';lbVid.pause&&lbVid.pause();lbVid.src='';
+    lbDriveFrame.style.display='none';lbDriveFrame.src='';
     lbImg.style.display='none';lbImg.src='';
     const tmp=new Image();
     tmp.onload=()=>{lbImg.src=item.src;lbImg.style.display='block';activeEl=lbImg;resetZoom();};
@@ -653,12 +663,14 @@ function openLBItem(idx){
     lb.classList.add('open');document.body.style.overflow='hidden';
   }
   lbZoomLbl.textContent='100%';lbZoomPct.textContent='100%';
+  // sembunyikan kontrol zoom untuk video drive (pakai kontrol bawaan Google Drive)
+  document.getElementById('lbZoomBar').style.display=item.type==='vid-drive'?'none':'flex';
   document.getElementById('lbPrev').style.opacity=gIdx>0?'1':'0.25';
   document.getElementById('lbNext').style.opacity=gIdx<gallery.length-1?'1':'0.25';
 }
 function prevItem(){if(gIdx>0)openLBItem(gIdx-1);}
 function nextItem(){if(gIdx<gallery.length-1)openLBItem(gIdx+1);}
-function closeLB(){lb.classList.remove('open');lbVid.pause&&lbVid.pause();lbVid.src='';lbImg.src='';document.body.style.overflow='';resetZoom();activeEl=null;}
+function closeLB(){lb.classList.remove('open');lbVid.pause&&lbVid.pause();lbVid.src='';lbImg.src='';lbDriveFrame.src='';document.body.style.overflow='';resetZoom();activeEl=null;}
 document.getElementById('lbClose').addEventListener('click',closeLB);
 lb.addEventListener('click',e=>{if(e.target===lb)closeLB();});
 document.getElementById('lbPrev').addEventListener('click',prevItem);
@@ -694,21 +706,45 @@ fotoKenangan.forEach((src,i)=>{
   memGrid.appendChild(card);
 });
 
-// VIDEO KENANGAN (10)
+// VIDEO KENANGAN (10) — bisa dari Google Drive atau file lokal
+// Untuk video Google Drive: isi "drive" dengan FILE ID (bagian antara /d/ dan /view di link share)
+// Untuk video lokal: isi "src" dengan path file di folder assets, biarkan "drive" kosong/null
 const videoKenangan=[
-  'assets/lab1.mp4','assets/lab2.mp4','assets/vd1.mp4','assets/cin1.mp4','assets/pjok.mp4',
-  'assets/pjok1.mp4','assets/video7.mp4','assets/video8.mp4','assets/video9.mp4','assets/video10.mp4',
+  {drive:'14ORcBnWGVj5Y7fC1hEj51iHRedpI_dpo'},
+  {drive:'12Qv1yRcHdeg-pNkyaKpLIWXq5Okgq_4d'},
+  {drive:'17ImO0HHArWQoAODYYu2iQyHaOZIfa6_o'},
+  {drive:'1C_PfWQQq_3_ock23JehjncVjVXa66eZj'},
+  {drive:'19ufaSvEYObqYFExa4Uq4MNN_RJahwrjq'},
+  {drive:'1PxqHvDPhEbKXxVNLjb-EP8AIrlLa8exC'},
+  {src:'assets/video7.mp4'},   // ✏️ ganti dengan {drive:'ID_DRIVE_ANDA'} jika pakai Google Drive
+  {src:'assets/video8.mp4'},   // ✏️ ganti dengan {drive:'ID_DRIVE_ANDA'} jika pakai Google Drive
+  {src:'assets/video9.mp4'},   // ✏️ ganti dengan {drive:'ID_DRIVE_ANDA'} jika pakai Google Drive
+  {src:'assets/video10.mp4'},  // ✏️ ganti dengan {drive:'ID_DRIVE_ANDA'} jika pakai Google Drive
 ];
+
+function driveEmbedUrl(id){return `https://drive.google.com/file/d/${id}/preview`;}
+
 const vidGrid=document.getElementById('videoGrid');
 const vidGalleryStart=gallery.length;
-videoKenangan.forEach((src,i)=>pushVid(src,`Video ${i+1}`));
-videoKenangan.forEach((src,i)=>{
+videoKenangan.forEach((v,i)=>{
+  if(v.drive){ gallery.push({type:'vid-drive',src:driveEmbedUrl(v.drive),label:`Video ${i+1}`}); }
+  else { pushVid(v.src,`Video ${i+1}`); }
+});
+videoKenangan.forEach((v,i)=>{
   const card=document.createElement('div');card.className='video-card';
-  card.innerHTML=`<video src="${src}" preload="metadata" muted></video>
-    <div class="video-overlay"><div class="play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div>
-    <div class="zoom-hint">🔍 Buka</div>
-    <div class="video-label">✦ Video ${i+1}</div>`;
-  card.querySelector('video').addEventListener('error',()=>card.style.display='none');
+  if(v.drive){
+    // pratinjau langsung pakai iframe Google Drive (lebih stabil dari endpoint thumbnail)
+    card.innerHTML=`<iframe src="${driveEmbedUrl(v.drive)}" style="position:absolute;inset:0;width:100%;height:100%;border:none;pointer-events:none;" allow="autoplay" loading="lazy"></iframe>
+      <div class="video-overlay" style="cursor:zoom-in;"><div class="play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div>
+      <div class="zoom-hint">🔍 Buka</div>
+      <div class="video-label">✦ Video ${i+1}</div>`;
+  } else {
+    card.innerHTML=`<video src="${v.src}" preload="metadata" muted></video>
+      <div class="video-overlay"><div class="play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div></div>
+      <div class="zoom-hint">🔍 Buka</div>
+      <div class="video-label">✦ Video ${i+1}</div>`;
+    card.querySelector('video').addEventListener('error',()=>card.style.display='none');
+  }
   card.addEventListener('click',()=>openLBItem(vidGalleryStart+i));
   vidGrid.appendChild(card);
 });
@@ -731,7 +767,7 @@ const siswaData=[
   {src:'assets/hakam.jpg', name:'Hakam Syukur',           msg:'"KADANG PENYESALAN TERBESAR BUKAN TENTANG KEHILANGAN,TAPI TENTANG KESEMPATAN YANG TIDAK SEMPAT DI PERJUANGKAN"'},
   {src:'assets/keyla.jpg', name:'Keyla Maulida',          msg:'​Jangan bandingkan bab pertama hidupmu dengan bab kedua puluh hidup orang lain.'},
   {src:'assets/kholifa.jpg', name:'Kholifa',                msg:'OK'},
-  {src:'assets/ipin.jpg',    name:'Mahdum Arifin',          msg:'Ojo kesusu nggayuh lintang, yen rembulan iseh gelem mandangi dalanmu'},
+  {src:'assets/ipin.JPG',    name:'Mahdum Arifin',          msg:'Ojo kesusu nggayuh lintang, yen rembulan iseh gelem mandangi dalanmu'},
   {src:'assets/marsya.jpeg', name:'Marsya Nailu N',         msg:'You don\'t have to be great to start, but you have to start to be great'},
   {src:'assets/melina.jpg',  name:'Meilina',                msg:'kita hanya perlu lebih baik dari kemarin bukan lebih baik dari orang lain'},
   {src:'assets/meilinda.jpg', name:'Meilinda N',             msg:'Satu langkah lebih dekat ke impian 👣'},
@@ -746,7 +782,7 @@ const siswaData=[
   {src:'assets/putri.jpg', name:'Putri Amanda',           msg:'Kamu boleh rehat, tapi jangan berhenti. Dunia butuh versi kamu yang udah pulih nanti'},
   {src:'assets/reza.jpg',    name:'Reza Dzikry A',          msg:'Sunyi bagaikan malam tanpa suara'},
   {src:'assets/ridho.jpg', name:'Ridho Ramadhan',         msg:'Kamu istimewa dan selalu dicintai 💕'},
-  {src:'assets/rizky.jpg', name:'Rizky Abdi P',           msg:'"Kegagalan adalah jalan menuju kesuksesan,maka dari itu teruslah berusaha"'},
+  {src:'assets/rizky.jpeg', name:'Rizky Abdi P',           msg:'"Seberat apapun masalah mu jangan lupa di cukur"'},
   {src:'assets/sela.jpg', name:'Sela Ramadhani',         msg:'jadilah dirimu sendiri tanpa harus memikirkan omongan orang lain🫶'},
   {src:'assets/sella.jpg',   name:'Shella Oktariandi',       msg:'as long as i\'m alive, i have infinite chances'},
   {src:'assets/sopi.jpg',    name:'Shofi Melati P',         msg:'Be proud of yourself, because you\'ve already proven that you can always survive everything'},
